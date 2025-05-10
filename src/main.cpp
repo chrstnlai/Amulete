@@ -1,4 +1,3 @@
-
 // Author: Christine Lai
 // Project Name: Amulete: Smart Garment for Endometriosis
 // Class Name: ITP 388: Developing Connected Devices
@@ -14,9 +13,11 @@
 #define CHARACTERISTIC_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
-// Heating connects to pin 12
 int heatPin = 12;
 bool deviceConnected = false;
+bool heatingOn = false;
+long heatStartTime = 0;
+const long autoOffDuration = 10800000; // 3 hours in milliseconds
 
 BLECharacteristic *pTxCharacteristic;
 
@@ -31,7 +32,7 @@ class MyServerCallbacks : public BLEServerCallbacks
   {
     deviceConnected = false;
     Serial.println("Device disconnected");
-    pServer->startAdvertising(); // Restart advertising
+    pServer->startAdvertising();
   }
 };
 
@@ -50,11 +51,14 @@ class MyCallbacks : public BLECharacteristicCallbacks
     if (value == "on")
     {
       digitalWrite(heatPin, HIGH);
+      heatingOn = true;
+      heatStartTime = millis(); // Start timer
       Serial.println("Heating ON: Say bye bye to your pain 💛");
     }
     else if (value == "off")
     {
       digitalWrite(heatPin, LOW);
+      heatingOn = false;
       Serial.println("Heating OFF");
     }
     else
@@ -70,7 +74,6 @@ void setup()
   pinMode(heatPin, OUTPUT);
   digitalWrite(heatPin, LOW);
 
-  // BLE setup
   BLEDevice::init("Amulete Device");
   BLEServer *pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
@@ -95,5 +98,12 @@ void setup()
 
 void loop()
 {
+  if (heatingOn && (millis() - heatStartTime >= autoOffDuration))
+  {
+    digitalWrite(heatPin, LOW);
+    heatingOn = false;
+    Serial.println("Auto-off triggered: Heating has been turned off ⏱️");
+  }
+
   delay(10);
 }
